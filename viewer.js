@@ -1,6 +1,6 @@
 const params = new URLSearchParams(window.location.search);
 const pdfUrl = params.get('pdf') || 'pdfs/doc1.pdf';
-const watermarkText = params.get('wm') || ('Viewed on ' + new Date().toLocaleString());
+const watermarkText = ('CIM College - ' + new Date().toLocaleString());
 
 const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -81,4 +81,5 @@ if (TRACK_URL) {
     console.warn('Tracking failed', e);
   }
 }
+
 
