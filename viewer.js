@@ -64,7 +64,7 @@ window.addEventListener('keydown', e => {
 });
 
 // --- Optional tracking ping (replace TRACK_URL with your endpoint) ---
-const TRACK_URL = 'https://script.google.com/macros/s/AKfycbwQhp5Zt40h_sXmx2p1kwRGgIGrJtuvQaY0ue97da2MmXt8kRxYlJuPbY6XQQj10eIDNw/exec';
+const TRACK_URL = 'https://script.google.com/macros/s/AKfycbyFP945cfBDh3Vcd4Hb1Bui2DdMzRsnIPz5MvCYnZwWa5Md_whLzQ9hxgwqhuNwgIzcKQ/exec';
 if (TRACK_URL) {
   try {
     navigator.sendBeacon(
@@ -76,6 +76,7 @@ if (TRACK_URL) {
     console.warn('Tracking failed', e);
   }
 }
+
 
 
 
