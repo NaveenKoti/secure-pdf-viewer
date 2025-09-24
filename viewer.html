@@ -5,20 +5,45 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Protected PDF Viewer</title>
 <style>
-  html,body{height:100%;margin:0;font-family:system-ui,Arial,sans-serif;background:#f3f3f3}
-  #frame{max-width:1024px;margin:18px auto;background:#fff;padding:10px;position:relative;user-select:none}
-  #viewerContainer{width:100%;overflow:auto}
-  .wm { position:absolute; inset:0; pointer-events:none; opacity:0.08; z-index:50; background-repeat:repeat; background-size:220px 220px; }
-  @media print { body{display:none !important;} }
-  /* Prevent selection cursor */
-  * { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
-  canvas { display:block; margin:10px auto; box-shadow:0 1px 6px rgba(0,0,0,0.06); }
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: system-ui, Arial, sans-serif;
+    background: #f3f3f3;
+  }
+  #frame {
+    max-width: 1024px;
+    margin: 18px auto;
+    background: #fff;
+    padding: 10px;
+    position: relative;
+    user-select: none;
+  }
+  #viewerContainer {
+    width: 100%;
+    overflow: auto;
+    position: relative; /* needed for proper canvas stacking */
+  }
+  canvas {
+    display: block;
+    margin: 10px auto;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+  @media print {
+    body { display: none !important; }
+  }
+  /* Prevent text selection */
+  * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
 </style>
 </head>
 <body>
   <div id="frame">
     <div id="viewerContainer" aria-live="polite">Loading PDF…</div>
-    <div id="wm" class="wm"></div>
   </div>
 
   <!-- PDF.js from CDN -->
