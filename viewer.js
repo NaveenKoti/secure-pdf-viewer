@@ -1,3 +1,4 @@
+// --- Parse query parameters (?pdf=URL&wm=watermarkText) ---
 const params = new URLSearchParams(window.location.search);
 const pdfUrl = params.get('pdf') || 'pdfs/doc1.pdf';
 const watermarkText = params.get('wm') || ('Viewed on ' + new Date().toLocaleString());
@@ -7,48 +8,42 @@ const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-// --- Viewer container and watermark target ---
+// --- Viewer container ---
 const viewerContainer = document.getElementById('viewerContainer');
-const watermarkLayer = document.getElementById('wm');
 
-// --- Create and apply a watermark background ---
-(function applyWatermark() {
+// --- Function to render a single PDF page with watermark ---
+function renderPageWithWatermark(page, scale = 1.3) {
+  const viewport = page.getViewport({ scale });
   const canvas = document.createElement('canvas');
-  canvas.width = 600;
-  canvas.height = 200;
-
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(0,0,0,0.06)';
-  ctx.font = '20px system-ui, Arial';
-  ctx.translate(0, 80);
-  ctx.rotate(-0.35); // tilt text
-  ctx.fillText(watermarkText, -50, 0);
 
-  const pattern = canvas.toDataURL();
-  watermarkLayer.style.backgroundImage = `url(${pattern})`;
-})();
+  canvas.width = Math.round(viewport.width);
+  canvas.height = Math.round(viewport.height);
 
-// --- Render all PDF pages into canvases ---
+  viewerContainer.appendChild(canvas);
+
+  // Render the PDF page
+  page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+    // Draw watermark on top
+    ctx.save();
+    ctx.translate(0, 80);       // adjust vertical position
+    ctx.rotate(-0.35);          // tilt text
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    ctx.font = '20px system-ui, Arial';
+    ctx.fillText(watermarkText, -50, 0);
+    ctx.restore();
+  });
+}
+
+// --- Render all PDF pages ---
 pdfjsLib.getDocument(pdfUrl).promise.then(pdf => {
   viewerContainer.innerHTML = ''; // clear previous content
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    pdf.getPage(pageNum).then(page => {
-      const viewport = page.getViewport({ scale: 1.3 });
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
-
-      viewerContainer.appendChild(canvas);
-
-      page.render({ canvasContext: ctx, viewport });
-    });
+    pdf.getPage(pageNum).then(page => renderPageWithWatermark(page));
   }
 }).catch(err => {
-  viewerContainer.textContent = 'Failed to load PDF: ' +
-    (err?.message || err);
+  viewerContainer.textContent = 'Failed to load PDF: ' + (err?.message || err);
 });
 
 // --- Basic content protection (not bulletproof) ---
@@ -76,7 +71,3 @@ if (TRACK_URL) {
     console.warn('Tracking failed', e);
   }
 }
-
-
-
-
