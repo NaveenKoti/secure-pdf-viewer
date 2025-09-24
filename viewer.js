@@ -11,7 +11,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 // --- Viewer container ---
 const viewerContainer = document.getElementById('viewerContainer');
 
-// --- Function to render a single PDF page with watermark ---
+// --- Function to render a single PDF page with repeated watermark ---
 function renderPageWithWatermark(page, scale = 1.3) {
   const viewport = page.getViewport({ scale });
   const canvas = document.createElement('canvas');
@@ -21,15 +21,27 @@ function renderPageWithWatermark(page, scale = 1.3) {
   canvas.height = Math.round(viewport.height);
   viewerContainer.appendChild(canvas);
 
-  // Render the PDF page
+  // Render PDF page
   page.render({ canvasContext: ctx, viewport }).promise.then(() => {
-    // Draw watermark on top
+    // Create a small watermark pattern canvas
+    const wmCanvas = document.createElement('canvas');
+    wmCanvas.width = 300;
+    wmCanvas.height = 150;
+    const wmCtx = wmCanvas.getContext('2d');
+
+    wmCtx.fillStyle = 'rgba(0,0,0,0.15)'; // darker watermark
+    wmCtx.font = '24px system-ui, Arial';
+    wmCtx.translate(wmCanvas.width / 2, wmCanvas.height / 2);
+    wmCtx.rotate(-0.35);
+    wmCtx.textAlign = 'center';
+    wmCtx.textBaseline = 'middle';
+    wmCtx.fillText(watermarkText, 0, 0);
+
+    // Apply repeating pattern over entire PDF page
+    const pattern = ctx.createPattern(wmCanvas, 'repeat');
     ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);  // center
-    ctx.rotate(-0.35);                                    // tilt text
-    ctx.fillStyle = 'rgba(0,0,0,0.1)';                   // visible opacity
-    ctx.font = '30px system-ui, Arial';
-    ctx.fillText(watermarkText, -ctx.measureText(watermarkText).width / 2, 0);
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
   });
 }
@@ -44,7 +56,7 @@ pdfjsLib.getDocument(pdfUrl).promise.then(pdf => {
   viewerContainer.textContent = 'Failed to load PDF: ' + (err?.message || err);
 });
 
-// --- Basic content protection (not bulletproof) ---
+// --- Basic content protection ---
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('copy', e => e.preventDefault());
 document.addEventListener('cut', e => e.preventDefault());
@@ -56,8 +68,7 @@ window.addEventListener('keydown', e => {
   }
 });
 
-
-// --- Optional tracking ping (replace TRACK_URL with your endpoint) ---
+// --- Optional tracking ping ---
 const TRACK_URL = 'https://script.google.com/macros/s/AKfycbyFP945cfBDh3Vcd4Hb1Bui2DdMzRsnIPz5MvCYnZwWa5Md_whLzQ9hxgwqhuNwgIzcKQ/exec';
 if (TRACK_URL) {
   try {
@@ -70,4 +81,3 @@ if (TRACK_URL) {
     console.warn('Tracking failed', e);
   }
 }
-
