@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Protected PDF Viewer</title>
+<title>PDF Viewer with Ads</title>
 <style>
   html, body {
     height: 100%;
@@ -22,32 +22,38 @@
   #viewerContainer {
     width: 100%;
     overflow: auto;
-    position: relative; /* needed for proper canvas stacking */
+    position: relative;
+  }
+  .pdf-page {
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .ad-slot {
+    width: 100%;
+    height: 60px; /* adjust ad height */
+    background: #eee;
+    text-align: center;
+    line-height: 60px;
+    font-size: 14px;
+    color: #333;
+    border: 1px dashed #ccc;
+    margin-top: 5px;
   }
   canvas {
     display: block;
-    margin: 10px auto;
+    margin: 0 auto;
     box-shadow: 0 1px 6px rgba(0,0,0,0.06);
   }
-  @media print {
-    body { display: none !important; }
-  }
-  /* Prevent text selection */
-  * {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-  }
+  @media print { body { display: none !important; } }
+  * { user-select: none; }
 </style>
 </head>
 <body>
-  <div id="frame">
-    <div id="viewerContainer" aria-live="polite">Loading PDF…</div>
-  </div>
+<div id="frame">
+  <div id="viewerContainer">Loading PDF…</div>
+</div>
 
-  <!-- PDF.js from CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-  <script src="viewer.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="viewer.js"></script>
 </body>
 </html>
