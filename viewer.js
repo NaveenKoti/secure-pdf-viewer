@@ -53,9 +53,10 @@ window.addEventListener('keydown', e => {
 });
 
 // Optional simple tracking ping (set TRACK_URL below to your webhook)
-const TRACK_URL = ''; // e.g. https://script.google.com/macros/s/XYZ/exec
+const TRACK_URL = 'AKfycbwQhp5Zt40h_sXmx2p1kwRGgIGrJtuvQaY0ue97da2MmXt8kRxYlJuPbY6XQQj10eIDNw'; // e.g. https://script.google.com/macros/s/XYZ/exec
 if (TRACK_URL) {
   try {
     navigator.sendBeacon(TRACK_URL + '?pdf=' + encodeURIComponent(pdfUrl) + '&wm=' + encodeURIComponent(watermarkText));
   } catch(e){}
 }
+
