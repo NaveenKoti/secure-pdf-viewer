@@ -19,18 +19,17 @@ function renderPageWithWatermark(page, scale = 1.3) {
 
   canvas.width = Math.round(viewport.width);
   canvas.height = Math.round(viewport.height);
-
   viewerContainer.appendChild(canvas);
 
   // Render the PDF page
   page.render({ canvasContext: ctx, viewport }).promise.then(() => {
     // Draw watermark on top
     ctx.save();
-    ctx.translate(0, 80);       // adjust vertical position
-    ctx.rotate(-0.35);          // tilt text
-    ctx.fillStyle = 'rgba(0,0,0,0.06)';
-    ctx.font = '20px system-ui, Arial';
-    ctx.fillText(watermarkText, -50, 0);
+    ctx.translate(canvas.width / 2, canvas.height / 2);  // center
+    ctx.rotate(-0.35);                                    // tilt text
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';                   // visible opacity
+    ctx.font = '30px system-ui, Arial';
+    ctx.fillText(watermarkText, -ctx.measureText(watermarkText).width / 2, 0);
     ctx.restore();
   });
 }
@@ -38,7 +37,6 @@ function renderPageWithWatermark(page, scale = 1.3) {
 // --- Render all PDF pages ---
 pdfjsLib.getDocument(pdfUrl).promise.then(pdf => {
   viewerContainer.innerHTML = ''; // clear previous content
-
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     pdf.getPage(pageNum).then(page => renderPageWithWatermark(page));
   }
@@ -58,6 +56,7 @@ window.addEventListener('keydown', e => {
   }
 });
 
+
 // --- Optional tracking ping (replace TRACK_URL with your endpoint) ---
 const TRACK_URL = 'https://script.google.com/macros/s/AKfycbyFP945cfBDh3Vcd4Hb1Bui2DdMzRsnIPz5MvCYnZwWa5Md_whLzQ9hxgwqhuNwgIzcKQ/exec';
 if (TRACK_URL) {
@@ -71,3 +70,4 @@ if (TRACK_URL) {
     console.warn('Tracking failed', e);
   }
 }
+
