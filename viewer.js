@@ -1,62 +1,80 @@
-// Read query params: ?pdf=URL&wm=watermarkText
 const params = new URLSearchParams(window.location.search);
-const pdfUrl = params.get('pdf') || 'pdfs/sample.pdf';
-const watermarkText = params.get('wm') || ('Viewed: ' + new Date().toLocaleString());
+const pdfUrl = params.get('pdf') || 'pdfs/doc1.pdf';
+const watermarkText = params.get('wm') || ('Viewed on ' + new Date().toLocaleString());
 
-// Setup PDF.js worker
+// --- Configure PDF.js worker ---
 const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-const container = document.getElementById('viewerContainer');
-const wm = document.getElementById('wm');
+// --- Viewer container and watermark target ---
+const viewerContainer = document.getElementById('viewerContainer');
+const watermarkLayer = document.getElementById('wm');
 
-// Watermark simple repeated background using canvas pattern
-(function createWatermark(){
-  const c = document.createElement('canvas');
-  c.width = 600; c.height = 200;
-  const ctx = c.getContext('2d');
-  ctx.translate(0,0);
+// --- Create and apply a watermark background ---
+(function applyWatermark() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 200;
+
+  const ctx = canvas.getContext('2d');
   ctx.fillStyle = 'rgba(0,0,0,0.06)';
   ctx.font = '20px system-ui, Arial';
   ctx.translate(0, 80);
-  ctx.rotate(-0.35);
+  ctx.rotate(-0.35); // tilt text
   ctx.fillText(watermarkText, -50, 0);
-  const dataUrl = c.toDataURL();
-  wm.style.backgroundImage = `url(${dataUrl})`;
+
+  const pattern = canvas.toDataURL();
+  watermarkLayer.style.backgroundImage = `url(${pattern})`;
 })();
 
-// Render PDF pages to canvases
+// --- Render all PDF pages into canvases ---
 pdfjsLib.getDocument(pdfUrl).promise.then(pdf => {
-  container.innerHTML = ''; // clear
-  for (let p = 1; p <= pdf.numPages; p++) {
-    pdf.getPage(p).then(page => {
+  viewerContainer.innerHTML = ''; // clear previous content
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    pdf.getPage(pageNum).then(page => {
       const viewport = page.getViewport({ scale: 1.3 });
+
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
-      container.appendChild(canvas);
-      page.render({ canvasContext: ctx, viewport: viewport });
+
+      viewerContainer.appendChild(canvas);
+
+      page.render({ canvasContext: ctx, viewport });
     });
   }
 }).catch(err => {
-  container.textContent = 'Error loading PDF: ' + (err && err.message ? err.message : err);
+  viewerContainer.textContent = 'Failed to load PDF: ' +
+    (err?.message || err);
 });
 
-// Basic browser hardening (not absolute)
+// --- Basic content protection (not bulletproof) ---
 document.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('copy', e => { e.preventDefault(); });
-document.addEventListener('cut', e => { e.preventDefault(); });
+document.addEventListener('copy', e => e.preventDefault());
+document.addEventListener('cut', e => e.preventDefault());
 document.addEventListener('selectstart', e => e.preventDefault());
 window.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && ['c','x','s','p'].includes(e.key.toLowerCase())) e.preventDefault();
+  if ((e.ctrlKey || e.metaKey) &&
+      ['c','x','s','p'].includes(e.key.toLowerCase())) {
+    e.preventDefault();
+  }
 });
 
-// Optional simple tracking ping (set TRACK_URL below to your webhook)
-const TRACK_URL = 'AKfycbwQhp5Zt40h_sXmx2p1kwRGgIGrJtuvQaY0ue97da2MmXt8kRxYlJuPbY6XQQj10eIDNw'; // e.g. https://script.google.com/macros/s/XYZ/exec
+// --- Optional tracking ping (replace TRACK_URL with your endpoint) ---
+const TRACK_URL = 'AKfycbwQhp5Zt40h_sXmx2p1kwRGgIGrJtuvQaY0ue97da2MmXt8kRxYlJuPbY6XQQj10eIDNw';
 if (TRACK_URL) {
   try {
-    navigator.sendBeacon(TRACK_URL + '?pdf=' + encodeURIComponent(pdfUrl) + '&wm=' + encodeURIComponent(watermarkText));
-  } catch(e){}
+    navigator.sendBeacon(
+      TRACK_URL +
+      '?pdf=' + encodeURIComponent(pdfUrl) +
+      '&wm=' + encodeURIComponent(watermarkText)
+    );
+  } catch (e) {
+    console.warn('Tracking failed', e);
+  }
 }
+
 
