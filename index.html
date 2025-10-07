@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Secure PDF Viewer</title>
 
 <style>
@@ -11,6 +12,7 @@
     font-family: system-ui, Arial, sans-serif;
     background: #f4f4f4;
   }
+
   #menuBar {
     display: flex;
     justify-content: space-between;
@@ -18,8 +20,8 @@
     background: #1a73e8;
     color: #fff;
     padding: 10px;
-    min-width: 320px;
   }
+
   #viewerContainer {
     max-width: 1024px;
     margin: 16px auto;
@@ -28,27 +30,10 @@
     border-radius: 8px;
     overflow: auto;
     user-select: none;
+    min-height: 200px;
   }
-  .pdf-page {
-    margin-bottom: 20px;
-    position: relative;
-  }
-  .ad-slot {
-    height: 60px;
-    background: #eee;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px dashed #ccc;
-    margin-top: 8px;
-  }
-  canvas {
-    display: block;
-    margin: 0 auto;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
-  }
+
   button#loginBtn {
-    display: inline-block !important;
     background: #fff;
     color: #1a73e8;
     font-weight: bold;
@@ -58,13 +43,30 @@
     cursor: pointer;
   }
 
+  canvas {
+    display: block;
+    margin: 0 auto;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+
+  .pdf-page {
+    margin-bottom: 20px;
+  }
+
+  .ad-slot {
+    height: 60px;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #ccc;
+    margin-top: 8px;
+  }
+
   /* Loader */
   #loader {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(255,255,255,0.85);
     display: none;
     align-items: center;
@@ -74,41 +76,40 @@
     font-size: 16px;
     color: #333;
   }
+
   #loader .spinner {
     border: 4px solid #ddd;
     border-top: 4px solid #1a73e8;
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    width: 40px; height: 40px;
     animation: spin 1s linear infinite;
     margin-bottom: 10px;
   }
+
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
 </style>
 </head>
+
 <body>
+  <div id="menuBar">
+    <strong>Secure PDF Viewer</strong>
+    <div id="progress">Not signed in</div>
+    <button id="loginBtn">Sign in with Google</button>
+  </div>
 
-<div id="menuBar">
-  <strong>Secure PDF Viewer</strong>
-  <div id="progress">Page 0 of 0</div>
-  <button id="loginBtn">Sign in with Google</button>
-</div>
+  <div id="viewerContainer">Please sign in to view your PDF...</div>
 
-<div id="viewerContainer">
-  Please sign in to view the PDF...
-</div>
+  <div id="loader">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
 
-<div id="loader">
-  <div class="spinner"></div>
-  <p>Loading...</p>
-</div>
-
-<!-- PDF.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<!-- Viewer JS -->
-<script src="viewer.js"></script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <!-- Viewer Logic -->
+  <script src="viewer.js"></script>
 </body>
 </html>
