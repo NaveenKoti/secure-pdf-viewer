@@ -1,41 +1,54 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Secure PDF Viewer</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Secure PDF Viewer</title>
 
-  <meta name="google-signin-client_id" content="685997065527-ci6b8foh4seriikmktriej7va2gtrsva.apps.googleusercontent.com">
+<!-- Google OAuth Client ID -->
+<meta name="google-signin-client_id" content="685997065527-ci6b8foh4seriikmktriej7va2gtrsva.apps.googleusercontent.com">
 
-  <style>
-    body { margin:0; font-family: system-ui, Arial; background:#f4f4f4; }
-    #menuBar{background:#1a73e8; color:#fff; padding:10px; display:flex; justify-content:space-between; align-items:center;}
-    #frame{max-width:1024px;margin:16px auto;padding:10px;background:#fff;border-radius:8px;}
-    #viewerContainer{overflow:auto;}
-    .pdf-page{margin-bottom:20px;}
-    .ad-slot{height:60px;background:#eee;display:flex;align-items:center;justify-content:center;border:1px dashed #ccc;margin-top:8px;}
-    canvas{display:block;margin:0 auto;box-shadow:0 1px 6px rgba(0,0,0,0.06);}
-  </style>
+<style>
+  body { margin:0; font-family: system-ui, Arial; background:#f4f4f4; }
+  #menuBar {
+    background:#1a73e8; color:#fff; padding:10px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  #frame {
+    max-width:1024px; margin:16px auto; padding:10px;
+    background:#fff; border-radius:8px; user-select:none;
+  }
+  #viewerContainer { overflow:auto; }
+  .pdf-page { margin-bottom:20px; position:relative; }
+  .ad-slot {
+    height:60px; background:#eee; display:flex;
+    align-items:center; justify-content:center;
+    border:1px dashed #ccc; margin-top:8px;
+  }
+  canvas { display:block; margin:0 auto; box-shadow:0 1px 6px rgba(0,0,0,0.06); }
+  @media print { body { display:none !important; } }
+</style>
 </head>
 <body>
-  <div id="menuBar">
-    <div><strong>Secure PDF Viewer</strong></div>
-    <div id="progress">Page 0 of 0</div>
-    <div id="signin-area">
-      <div id="g_id_onload"
-           data-client_id="YOUR_CLIENT_ID.apps.googleusercontent.com"
-           data-auto_prompt="false">
-      </div>
-      <div id="gSignInButton"></div>
-    </div>
-  </div>
 
-  <div id="frame">
-    <div id="viewerContainer">Please sign in to load the PDF...</div>
+<!-- Menu Bar -->
+<div id="menuBar">
+  <div><strong>Secure PDF Viewer</strong></div>
+  <div id="progress">Page 0 of 0</div>
+  <div id="signin-area">
+    <div id="gSignInButton"></div>
   </div>
+</div>
 
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-  <script src="viewer.js"></script>
+<!-- Viewer Frame -->
+<div id="frame">
+  <div id="viewerContainer">Please sign in to load the PDF...</div>
+</div>
+
+<!-- Scripts -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="viewer.js"></script>
+
 </body>
 </html>
