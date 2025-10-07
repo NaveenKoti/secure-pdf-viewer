@@ -1,12 +1,11 @@
 // CONFIG
-const CLIENT_ID = '685997065527-ci6b8foh4seriikmktriej7va2gtrsva.apps.googleusercontent.com';
 const DRIVE_FILE_ID = '1xE0DpapZFFP2oj9RGRjOOpKig1ULVl_P';
 const SAMPLE_PDF_URL = 'pdfs/doc1.pdf';
 const ACCESS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwbsAnUXtDLPY28RPx7IzJrivR21xWuiyMIVFEPue59JbdzA8Lu3ClD-N2qgY7mx5rr/exec';
 
 const viewerContainer = document.getElementById('viewerContainer');
 const progressLabel = document.getElementById('progress');
-const loginBtn = document.getElementById('loginBtn');
+const loginBtn = document.getElementById('loginBtn'); // optional, for browser OAuth
 
 let userEmail = null;
 let accessToken = null;
@@ -18,42 +17,35 @@ const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 // ==========================
-// GOOGLE OAUTH REDIRECT FLOW
+// READ QUERY PARAMS (for Kodular WebView)
 // ==========================
-loginBtn.onclick = () => {
-  const redirectUri = window.location.href.split('#')[0];
-  const scope = 'openid email https://www.googleapis.com/auth/drive.readonly';
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}` +
-              `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-              `&response_type=token&scope=${encodeURIComponent(scope)}&prompt=consent`;
-  window.location.href = url;
-};
+function getQueryParams() {
+  const params = {};
+  window.location.search.substring(1).split("&").forEach(pair => {
+    const [k,v] = pair.split("=");
+    if(k) params[decodeURIComponent(k)] = decodeURIComponent(v||"");
+  });
+  return params;
+}
 
-// On page load, check if token in URL
-window.onload = async () => {
-  const hash = window.location.hash.substring(1);
-  const params = new URLSearchParams(hash);
-  accessToken = params.get('access_token');
+// ==========================
+// INITIALIZATION
+// ==========================
+async function initViewer() {
+  const params = getQueryParams();
+  userEmail = params.email || null;
+  accessToken = params.token || null;
 
-  if(accessToken) {
-    loginBtn.style.display = 'none'; // hide login button
-    await fetchUserEmail();
+  if(userEmail && accessToken){
+    // Kodular or already logged in
     checkAccessAndLoad();
-  }
-};
-
-// Fetch user email from Google
-async function fetchUserEmail() {
-  try {
-    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { 'Authorization': 'Bearer ' + accessToken }
-    });
-    const data = await res.json();
-    userEmail = data.email;
-    console.log('Signed in as', userEmail);
-  } catch(e) {
-    console.warn('Failed to fetch email', e);
-    userEmail = 'Guest';
+    if(loginBtn) loginBtn.style.display='none';
+  } else if(loginBtn) {
+    // Browser fallback: show login button
+    loginBtn.style.display = 'block';
+  } else {
+    // No login info, just show sample PDF
+    loadPdf(SAMPLE_PDF_URL);
   }
 }
 
@@ -132,7 +124,7 @@ function renderPage(page,pageNum){
 
 // Watermark
 function drawWatermark(ctx,width,height){
-  const text = `${userEmail} | ${new Date().toLocaleString()}`;
+  const text = `${userEmail||'Guest'} | ${new Date().toLocaleString()}`;
   ctx.save(); ctx.fillStyle='rgba(0,0,0,0.25)';
   ctx.font='20px system-ui,Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
   const stepX=240,stepY=140;
@@ -165,7 +157,7 @@ function showAccessDenied(){
 }
 
 function requestAccess(){
-  fetch(`${ACCESS_SCRIPT_URL}?action=requestAccess&fileId=${DRIVE_FILE_ID}&email=${encodeURIComponent(userEmail)}`)
+  fetch(`${ACCESS_SCRIPT_URL}?action=requestAccess&fileId=${DRIVE_FILE_ID}&email=${encodeURIComponent(userEmail||'unknown')}`)
     .then(r=>r.json())
     .then(res=>{ alert('Request submitted. Admin notified.'); loadPdf(SAMPLE_PDF_URL); })
     .catch(e=>{ alert('Request failed'); loadPdf(SAMPLE_PDF_URL); });
@@ -199,3 +191,8 @@ document.addEventListener('selectstart',e=>e.preventDefault());
 window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&['c','x','s','p'].includes(e.key.toLowerCase())) e.preventDefault();
 });
+
+// ==========================
+// INIT
+// ==========================
+window.onload = ()=>{ initViewer(); };
