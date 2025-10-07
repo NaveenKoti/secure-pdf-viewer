@@ -1,4 +1,4 @@
-// CONFIG
+// CONFIGURATION
 const CLIENT_ID = '685997065527-ci6b8foh4seriikmktriej7va2gtrsva.apps.googleusercontent.com';
 const DRIVE_FILE_ID = '1xE0DpapZFFP2oj9RGRjOOpKig1ULVl_P';
 const SAMPLE_PDF_URL = 'pdfs/doc1.pdf';
@@ -12,77 +12,66 @@ const loader = document.getElementById('loader');
 let userEmail = null;
 let accessToken = null;
 let pdfDoc = null;
-let pagesRead = 0;
+let lastPageViewed = 0;
+let totalPages = 0;
 
-// PDF.js worker
-const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+// PDF.js setup
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-// ==========================
-// GOOGLE OAUTH REDIRECT FLOW
-// ==========================
+// ================ GOOGLE SIGN-IN ================
 loginBtn.onclick = () => {
   showLoader("Redirecting to Google Sign-in...");
-  const redirectUri = window.location.href.split('#')[0];
+  const redirectUri = window.location.origin + window.location.pathname; // strict redirect
   const scope = 'openid email https://www.googleapis.com/auth/drive.readonly';
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}` +
-              `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-              `&response_type=token&scope=${encodeURIComponent(scope)}&prompt=consent`;
-  window.location.href = url;
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=token&scope=${encodeURIComponent(scope)}&prompt=consent`;
+  window.location.href = authUrl;
 };
 
-// On page load, check if token in URL
 window.onload = async () => {
   const hash = window.location.hash.substring(1);
   const params = new URLSearchParams(hash);
   accessToken = params.get('access_token');
-
   if (accessToken) {
-    loginBtn.style.display = 'none'; // hide login button
+    loginBtn.style.display = 'none';
     showLoader("Signing you in...");
     await fetchUserEmail();
     checkAccessAndLoad();
-  } else {
-    hideLoader();
-  }
+  } else hideLoader();
 };
 
-// ==========================
-// Fetch user email
-// ==========================
+// ================ FETCH USER INFO ================
 async function fetchUserEmail() {
   try {
     const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { 'Authorization': 'Bearer ' + accessToken }
+      headers: { Authorization: 'Bearer ' + accessToken }
     });
     const data = await res.json();
     userEmail = data.email;
-    console.log('Signed in as', userEmail);
-  } catch (e) {
-    console.warn('Failed to fetch email', e);
+  } catch (err) {
     userEmail = 'Guest';
   }
 }
 
-// ==========================
-// ACCESS CHECK & PDF LOADING
-// ==========================
+// ================ ACCESS CHECK ================
 function checkAccessAndLoad() {
   showLoader("Verifying your access...");
   fetch(`${ACCESS_SCRIPT_URL}?action=checkAccess&email=${encodeURIComponent(userEmail)}&fileId=${DRIVE_FILE_ID}`)
     .then(r => r.json())
     .then(res => {
       hideLoader();
-      if(res.status==='success' && res.hasAccess) loadPdfFromDrive();
+      if (res.status === 'success' && res.hasAccess) loadPdfFromDrive();
       else showAccessDenied();
-    }).catch(e => {
-      console.warn('Access check failed', e);
+    })
+    .catch(e => {
       hideLoader();
       loadPdf(SAMPLE_PDF_URL);
     });
 }
 
-// Load PDF from Drive
+// ================ LOAD PDF ================
 function loadPdfFromDrive() {
   showLoader("Loading your document...");
   const url = `https://www.googleapis.com/drive/v3/files/${DRIVE_FILE_ID}?alt=media`;
@@ -92,45 +81,45 @@ function loadPdfFromDrive() {
       hideLoader();
       renderPdfFromArrayBuffer(ab);
     })
-    .catch(e => {
-      console.warn('Drive PDF fetch failed', e);
+    .catch(() => {
       hideLoader();
       loadPdf(SAMPLE_PDF_URL);
     });
 }
 
-// Load PDF from sample URL
 function loadPdf(url) {
   showLoader("Loading sample PDF...");
-  pdfjsLib.getDocument(url).promise.then(pdf => {
-    hideLoader();
-    renderPdfDoc(pdf);
-  }).catch(e => {
-    hideLoader();
-    viewerContainer.textContent = 'Failed to load PDF: ' + (e?.message||e);
-  });
+  pdfjsLib.getDocument(url).promise
+    .then(pdf => {
+      hideLoader();
+      renderPdfDoc(pdf);
+    })
+    .catch(e => {
+      hideLoader();
+      viewerContainer.textContent = 'Failed to load PDF: ' + e.message;
+    });
 }
 
 function renderPdfFromArrayBuffer(ab) {
-  pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise.then(pdf => {
-    hideLoader();
-    renderPdfDoc(pdf);
-  }).catch(e => {
-    hideLoader();
-    viewerContainer.textContent = 'Failed to parse PDF: '+e?.message;
-  });
+  pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise
+    .then(pdf => {
+      hideLoader();
+      renderPdfDoc(pdf);
+    })
+    .catch(e => {
+      hideLoader();
+      viewerContainer.textContent = 'Failed to parse PDF: ' + e.message;
+    });
 }
 
-// ==========================
-// RENDER PDF PAGES
-// ==========================
+// ================ RENDER PDF PAGES ================
 function renderPdfDoc(pdf) {
   pdfDoc = pdf;
-  pagesRead = 0;
+  totalPages = pdf.numPages;
   viewerContainer.innerHTML = '';
-  progressLabel.textContent = `Page 0 of ${pdf.numPages}`;
+  progressLabel.textContent = `Viewing 0 / ${totalPages} pages`;
 
-  for (let i = 1; i <= pdf.numPages; i++) {
+  for (let i = 1; i <= totalPages; i++) {
     pdf.getPage(i).then(page => renderPage(page, i));
   }
 }
@@ -141,10 +130,11 @@ function renderPage(page, pageNum) {
   pageDiv.className = 'pdf-page';
 
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(viewport.width);
-  canvas.height = Math.round(viewport.height);
-  pageDiv.appendChild(canvas);
   const ctx = canvas.getContext('2d');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+
+  pageDiv.appendChild(canvas);
   viewerContainer.appendChild(pageDiv);
 
   const adDiv = document.createElement('div');
@@ -154,25 +144,24 @@ function renderPage(page, pageNum) {
 
   page.render({ canvasContext: ctx, viewport }).promise.then(() => {
     drawWatermark(ctx, canvas.width, canvas.height);
-    pagesRead = Math.max(pagesRead, pageNum);
-    progressLabel.textContent = `Page ${pagesRead} of ${pdfDoc.numPages}`;
+    lastPageViewed = Math.max(lastPageViewed, pageNum);
+    progressLabel.textContent = `Viewing ${lastPageViewed} / ${totalPages} pages`;
     sendProgress();
   });
 }
 
-// Watermark
-function drawWatermark(ctx, width, height) {
+// ================ WATERMARK ================
+function drawWatermark(ctx, w, h) {
   const text = `${userEmail} | ${new Date().toLocaleString()}`;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.font = '20px system-ui,Arial';
+  ctx.font = '20px system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const stepX = 240, stepY = 140;
-  for (let y = 0; y < height; y += stepY) {
-    for (let x = 0; x < width; x += stepX) {
+  for (let y = 0; y < h; y += 140) {
+    for (let x = 0; x < w; x += 240) {
       ctx.save();
-      ctx.translate(x + stepX / 2, y + stepY / 2);
+      ctx.translate(x + 120, y + 70);
       ctx.rotate(-0.35);
       ctx.fillText(text, 0, 0);
       ctx.restore();
@@ -181,75 +170,69 @@ function drawWatermark(ctx, width, height) {
   ctx.restore();
 }
 
-// ==========================
-// ACCESS DENIED & REQUEST
-// ==========================
+// ================ ACCESS DENIED ================
 function showAccessDenied() {
   viewerContainer.innerHTML = `
-    <div style="padding:24px;text-align:center;">
+    <div style="text-align:center; padding:24px;">
       <h3>Access restricted</h3>
       <p>You don't have permission to view this PDF.</p>
       <button id="requestAccessBtn">Request Access</button>
-      <div style="margin-top:12px;"><button id="viewSampleBtn">View Sample PDF</button></div>
-    </div>
-  `;
-  document.getElementById('requestAccessBtn').onclick = () => requestAccess();
+      <div style="margin-top:10px;">
+        <button id="viewSampleBtn">View Sample PDF</button>
+      </div>
+    </div>`;
+  document.getElementById('requestAccessBtn').onclick = requestAccess;
   document.getElementById('viewSampleBtn').onclick = () => loadPdf(SAMPLE_PDF_URL);
 }
 
+// ================ REQUEST ACCESS ================
 function requestAccess() {
   showLoader("Requesting access...");
   fetch(`${ACCESS_SCRIPT_URL}?action=requestAccess&fileId=${DRIVE_FILE_ID}&email=${encodeURIComponent(userEmail)}`)
     .then(r => r.json())
-    .then(res => { 
+    .then(() => {
       hideLoader();
-      alert('Request submitted. Admin notified.');
+      alert('Access request sent. Admin notified.');
       loadPdf(SAMPLE_PDF_URL);
     })
-    .catch(e => { 
+    .catch(() => {
       hideLoader();
-      alert('Request failed');
-      loadPdf(SAMPLE_PDF_URL); 
+      alert('Request failed.');
+      loadPdf(SAMPLE_PDF_URL);
     });
 }
 
-// ==========================
-// PROGRESS LOGGING
-// ==========================
+// ================ LOGGING ================
 function sendProgress() {
-  if(!userEmail || !pdfDoc) return;
+  if (!userEmail) return;
   fetch(ACCESS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email: userEmail,
-      pdfUrl: `https://drive.google.com/file/d/${DRIVE_FILE_ID}/view`,
-      pagesRead,
-      totalPages: pdfDoc.numPages,
-      timestamp: new Date().toISOString()
+      fileId: DRIVE_FILE_ID,
+      pageViewed: lastPageViewed,
+      totalPages,
+      timestamp: new Date().toISOString(),
+      action: 'logAccess'
     })
-  }).catch(e => console.warn('progress log failed', e));
+  }).catch(e => console.warn('Log failed', e));
 }
 
-// ==========================
-// ANTI-COPY PROTECTIONS
-// ==========================
+// ================ LOADER HANDLERS ================
+function showLoader(msg = "Loading...") {
+  loader.style.display = 'flex';
+  loader.querySelector('p').textContent = msg;
+}
+function hideLoader() {
+  loader.style.display = 'none';
+}
+
+// ================ DISABLE COPY ETC ================
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('copy', e => e.preventDefault());
 document.addEventListener('cut', e => e.preventDefault());
 document.addEventListener('selectstart', e => e.preventDefault());
 window.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && ['c','x','s','p'].includes(e.key.toLowerCase())) e.preventDefault();
+  if ((e.ctrlKey || e.metaKey) && ['c', 'x', 's', 'p'].includes(e.key.toLowerCase())) e.preventDefault();
 });
-
-// ==========================
-// LOADER FUNCTIONS
-// ==========================
-function showLoader(message = "Loading...") {
-  loader.style.display = 'flex';
-  loader.querySelector('p').textContent = message;
-}
-
-function hideLoader() {
-  loader.style.display = 'none';
-}
