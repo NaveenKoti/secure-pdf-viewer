@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Secure PDF Viewer</title>
-<meta name="google-signin-client_id" content="685997065527-ci6b8foh4seriikmktriej7va2gtrsva.apps.googleusercontent.com">
 
 <style>
   body { margin:0; font-family: system-ui, Arial; background:#f4f4f4; }
@@ -22,14 +21,14 @@
 <div id="menuBar">
   <div><strong>Secure PDF Viewer</strong></div>
   <div id="progress">Page 0 of 0</div>
-  <div id="signin-area"><div id="gSignInButton"></div></div>
+  <div id="signin-area"><button id="loginBtn">Sign in with Google</button></div>
 </div>
 
 <div id="frame">
   <div id="viewerContainer">Please sign in to view the PDF...</div>
 </div>
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="viewer.js"></script>
 
