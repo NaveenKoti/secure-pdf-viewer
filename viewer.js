@@ -6,6 +6,7 @@ const ACCESS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwbsAnUXtDLPY
 
 const viewerContainer = document.getElementById('viewerContainer');
 const progressLabel = document.getElementById('progress');
+const loginBtn = document.getElementById('loginBtn');
 
 let userEmail = null;
 let accessToken = null;
@@ -14,48 +15,55 @@ let pagesRead = 0;
 
 // PDF.js worker
 const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-// === Google Auth
-let tokenClient;
-function initAuth() {
-  google.accounts.id.initialize({
-    client_id: CLIENT_ID,
-    callback: handleCredentialResponse,
-    ux_mode: 'popup'
-  });
-  google.accounts.id.renderButton(document.getElementById('gSignInButton'), { theme:'outline', size:'large' });
+// ==========================
+// GOOGLE OAUTH REDIRECT FLOW
+// ==========================
+loginBtn.onclick = () => {
+  const redirectUri = window.location.href.split('#')[0];
+  const scope = 'openid email https://www.googleapis.com/auth/drive.readonly';
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}` +
+              `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+              `&response_type=token&scope=${encodeURIComponent(scope)}&prompt=consent`;
+  window.location.href = url;
+};
 
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/drive.readonly openid email',
-    callback: resp => {
-      if(resp.error) { console.error(resp.error); return; }
-      accessToken = resp.access_token;
-      onAuthReady();
-    }
-  });
+// On page load, check if token in URL
+window.onload = async () => {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  accessToken = params.get('access_token');
+
+  if(accessToken) {
+    loginBtn.style.display = 'none'; // hide login button
+    await fetchUserEmail();
+    checkAccessAndLoad();
+  }
+};
+
+// Fetch user email from Google
+async function fetchUserEmail() {
+  try {
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+    const data = await res.json();
+    userEmail = data.email;
+    console.log('Signed in as', userEmail);
+  } catch(e) {
+    console.warn('Failed to fetch email', e);
+    userEmail = 'Guest';
+  }
 }
 
-// Google sign-in callback
-function handleCredentialResponse(response){
-  const payload = parseJwt(response.credential);
-  userEmail = payload.email || 'Guest';
-  tokenClient.requestAccessToken({ prompt:'consent' });
-}
-
-function parseJwt(token){
-  const base64Url = token.split('.')[1];
-  const base64 = base64Url.replace(/-/g,'+').replace(/_/g,'/');
-  return JSON.parse(decodeURIComponent(atob(base64).split('').map(c=> '%' + ('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));
-}
-
-// === Check access & load PDF
-function onAuthReady(){
+// ==========================
+// ACCESS CHECK & PDF LOADING
+// ==========================
+function checkAccessAndLoad() {
   fetch(`${ACCESS_SCRIPT_URL}?action=checkAccess&email=${encodeURIComponent(userEmail)}&fileId=${DRIVE_FILE_ID}`)
-    .then(r=>r.json())
-    .then(res=>{
+    .then(r => r.json())
+    .then(res => {
       if(res.status==='success' && res.hasAccess) loadPdfFromDrive();
       else showAccessDenied();
     }).catch(e=>{
@@ -76,6 +84,7 @@ function loadPdfFromDrive(){
     });
 }
 
+// Load PDF from sample URL
 function loadPdf(url){
   pdfjsLib.getDocument(url).promise.then(pdf=> renderPdfDoc(pdf))
     .catch(e=> viewerContainer.textContent = 'Failed to load PDF: '+(e?.message||e));
@@ -86,7 +95,9 @@ function renderPdfFromArrayBuffer(ab){
     .catch(e=> viewerContainer.textContent = 'Failed to parse PDF: '+e?.message);
 }
 
-// === Render PDF Pages
+// ==========================
+// RENDER PDF PAGES
+// ==========================
 function renderPdfDoc(pdf){
   pdfDoc = pdf; pagesRead=0;
   viewerContainer.innerHTML='';
@@ -119,6 +130,7 @@ function renderPage(page,pageNum){
   });
 }
 
+// Watermark
 function drawWatermark(ctx,width,height){
   const text = `${userEmail} | ${new Date().toLocaleString()}`;
   ctx.save(); ctx.fillStyle='rgba(0,0,0,0.25)';
@@ -136,7 +148,9 @@ function drawWatermark(ctx,width,height){
   ctx.restore();
 }
 
-// === Access Denied UI
+// ==========================
+// ACCESS DENIED & REQUEST
+// ==========================
 function showAccessDenied(){
   viewerContainer.innerHTML=`
     <div style="padding:24px;text-align:center;">
@@ -157,7 +171,9 @@ function requestAccess(){
     .catch(e=>{ alert('Request failed'); loadPdf(SAMPLE_PDF_URL); });
 }
 
-// === Progress Logging
+// ==========================
+// PROGRESS LOGGING
+// ==========================
 function sendProgress(){
   if(!userEmail||!pdfDoc) return;
   fetch(ACCESS_SCRIPT_URL,{
@@ -173,7 +189,9 @@ function sendProgress(){
   }).catch(e=>console.warn('progress log failed',e));
 }
 
-// === Anti-copy protections
+// ==========================
+// ANTI-COPY PROTECTIONS
+// ==========================
 document.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('copy',e=>e.preventDefault());
 document.addEventListener('cut',e=>e.preventDefault());
@@ -181,5 +199,3 @@ document.addEventListener('selectstart',e=>e.preventDefault());
 window.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&['c','x','s','p'].includes(e.key.toLowerCase())) e.preventDefault();
 });
-
-window.onload=()=>{ initAuth(); };
