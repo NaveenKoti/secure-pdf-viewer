@@ -7,6 +7,7 @@ const ACCESS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwbsAnUXtDLPY
 const viewerContainer = document.getElementById('viewerContainer');
 const progressLabel = document.getElementById('progress');
 const loginBtn = document.getElementById('loginBtn');
+const loader = document.getElementById('loader');
 
 let userEmail = null;
 let accessToken = null;
@@ -21,6 +22,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 // GOOGLE OAUTH REDIRECT FLOW
 // ==========================
 loginBtn.onclick = () => {
+  showLoader("Redirecting to Google Sign-in...");
   const redirectUri = window.location.href.split('#')[0];
   const scope = 'openid email https://www.googleapis.com/auth/drive.readonly';
   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}` +
@@ -37,12 +39,17 @@ window.onload = async () => {
 
   if (accessToken) {
     loginBtn.style.display = 'none'; // hide login button
+    showLoader("Signing you in...");
     await fetchUserEmail();
     checkAccessAndLoad();
+  } else {
+    hideLoader();
   }
 };
 
+// ==========================
 // Fetch user email
+// ==========================
 async function fetchUserEmail() {
   try {
     const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -61,38 +68,57 @@ async function fetchUserEmail() {
 // ACCESS CHECK & PDF LOADING
 // ==========================
 function checkAccessAndLoad() {
+  showLoader("Verifying your access...");
   fetch(`${ACCESS_SCRIPT_URL}?action=checkAccess&email=${encodeURIComponent(userEmail)}&fileId=${DRIVE_FILE_ID}`)
     .then(r => r.json())
     .then(res => {
+      hideLoader();
       if(res.status==='success' && res.hasAccess) loadPdfFromDrive();
       else showAccessDenied();
     }).catch(e => {
       console.warn('Access check failed', e);
+      hideLoader();
       loadPdf(SAMPLE_PDF_URL);
     });
 }
 
 // Load PDF from Drive
 function loadPdfFromDrive() {
+  showLoader("Loading your document...");
   const url = `https://www.googleapis.com/drive/v3/files/${DRIVE_FILE_ID}?alt=media`;
   fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } })
     .then(r => r.arrayBuffer())
-    .then(ab => renderPdfFromArrayBuffer(ab))
+    .then(ab => {
+      hideLoader();
+      renderPdfFromArrayBuffer(ab);
+    })
     .catch(e => {
       console.warn('Drive PDF fetch failed', e);
+      hideLoader();
       loadPdf(SAMPLE_PDF_URL);
     });
 }
 
 // Load PDF from sample URL
 function loadPdf(url) {
-  pdfjsLib.getDocument(url).promise.then(pdf => renderPdfDoc(pdf))
-    .catch(e => viewerContainer.textContent = 'Failed to load PDF: ' + (e?.message||e));
+  showLoader("Loading sample PDF...");
+  pdfjsLib.getDocument(url).promise.then(pdf => {
+    hideLoader();
+    renderPdfDoc(pdf);
+  }).catch(e => {
+    hideLoader();
+    viewerContainer.textContent = 'Failed to load PDF: ' + (e?.message||e);
+  });
 }
 
 function renderPdfFromArrayBuffer(ab) {
-  pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise.then(pdf => renderPdfDoc(pdf))
-    .catch(e => viewerContainer.textContent = 'Failed to parse PDF: '+e?.message);
+  pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise.then(pdf => {
+    hideLoader();
+    renderPdfDoc(pdf);
+  }).catch(e => {
+    hideLoader();
+    viewerContainer.textContent = 'Failed to parse PDF: '+e?.message;
+  });
 }
 
 // ==========================
@@ -172,10 +198,19 @@ function showAccessDenied() {
 }
 
 function requestAccess() {
+  showLoader("Requesting access...");
   fetch(`${ACCESS_SCRIPT_URL}?action=requestAccess&fileId=${DRIVE_FILE_ID}&email=${encodeURIComponent(userEmail)}`)
     .then(r => r.json())
-    .then(res => { alert('Request submitted. Admin notified.'); loadPdf(SAMPLE_PDF_URL); })
-    .catch(e => { alert('Request failed'); loadPdf(SAMPLE_PDF_URL); });
+    .then(res => { 
+      hideLoader();
+      alert('Request submitted. Admin notified.');
+      loadPdf(SAMPLE_PDF_URL);
+    })
+    .catch(e => { 
+      hideLoader();
+      alert('Request failed');
+      loadPdf(SAMPLE_PDF_URL); 
+    });
 }
 
 // ==========================
@@ -206,3 +241,15 @@ document.addEventListener('selectstart', e => e.preventDefault());
 window.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && ['c','x','s','p'].includes(e.key.toLowerCase())) e.preventDefault();
 });
+
+// ==========================
+// LOADER FUNCTIONS
+// ==========================
+function showLoader(message = "Loading...") {
+  loader.style.display = 'flex';
+  loader.querySelector('p').textContent = message;
+}
+
+function hideLoader() {
+  loader.style.display = 'none';
+}
