@@ -1,11 +1,12 @@
 // CONFIG
+const CLIENT_ID = '685997065527-ci6b8foh4seriikmktriej7va2gtrsva.apps.googleusercontent.com';
 const DRIVE_FILE_ID = '1xE0DpapZFFP2oj9RGRjOOpKig1ULVl_P';
 const SAMPLE_PDF_URL = 'pdfs/doc1.pdf';
 const ACCESS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwbsAnUXtDLPY28RPx7IzJrivR21xWuiyMIVFEPue59JbdzA8Lu3ClD-N2qgY7mx5rr/exec';
 
 const viewerContainer = document.getElementById('viewerContainer');
 const progressLabel = document.getElementById('progress');
-const loginBtn = document.getElementById('loginBtn'); // optional, for browser OAuth
+const loginBtn = document.getElementById('loginBtn'); // optional for browser
 
 let userEmail = null;
 let accessToken = null;
@@ -17,8 +18,7 @@ const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 // ==========================
-// READ QUERY PARAMS (for Kodular WebView)
-// ==========================
+// HELPER: Query Params (Kodular WebView)
 function getQueryParams() {
   const params = {};
   window.location.search.substring(1).split("&").forEach(pair => {
@@ -29,29 +29,63 @@ function getQueryParams() {
 }
 
 // ==========================
-// INITIALIZATION
+// HELPER: Parse JWT
+function parseJwt(token){
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g,'+').replace(/_/g,'/');
+  return JSON.parse(decodeURIComponent(atob(base64).split('').map(c=> '%' + ('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+}
+
 // ==========================
+// INIT
 async function initViewer() {
   const params = getQueryParams();
   userEmail = params.email || null;
   accessToken = params.token || null;
 
   if(userEmail && accessToken){
-    // Kodular or already logged in
-    checkAccessAndLoad();
+    // Kodular or already logged in via query string
     if(loginBtn) loginBtn.style.display='none';
-  } else if(loginBtn) {
-    // Browser fallback: show login button
-    loginBtn.style.display = 'block';
+    checkAccessAndLoad();
+    return;
+  }
+
+  // Browser fallback: Google Sign-In JS
+  if(window.google && google.accounts && loginBtn){
+    loginBtn.style.display='block';
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      callback: handleCredentialResponse,
+      ux_mode: 'popup'
+    });
+    google.accounts.id.renderButton(loginBtn, { theme:'outline', size:'large' });
   } else {
-    // No login info, just show sample PDF
+    // fallback if Google Sign-In not available
     loadPdf(SAMPLE_PDF_URL);
   }
 }
 
+// Google Sign-In callback for browser
+function handleCredentialResponse(response){
+  const payload = parseJwt(response.credential);
+  userEmail = payload.email || 'Guest';
+
+  // Request access token using OAuth2 implicit flow
+  const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/drive.readonly openid email',
+    callback: resp => {
+      if(resp.error) { console.error(resp.error); return; }
+      accessToken = resp.access_token;
+      if(loginBtn) loginBtn.style.display='none';
+      checkAccessAndLoad();
+    }
+  });
+  tokenClient.requestAccessToken({ prompt:'consent' });
+}
+
 // ==========================
 // ACCESS CHECK & PDF LOADING
-// ==========================
 function checkAccessAndLoad() {
   fetch(`${ACCESS_SCRIPT_URL}?action=checkAccess&email=${encodeURIComponent(userEmail)}&fileId=${DRIVE_FILE_ID}`)
     .then(r => r.json())
@@ -64,7 +98,6 @@ function checkAccessAndLoad() {
     });
 }
 
-// Load PDF from Drive
 function loadPdfFromDrive(){
   const url = `https://www.googleapis.com/drive/v3/files/${DRIVE_FILE_ID}?alt=media`;
   fetch(url,{headers:{Authorization:'Bearer '+accessToken}})
@@ -76,7 +109,6 @@ function loadPdfFromDrive(){
     });
 }
 
-// Load PDF from sample URL
 function loadPdf(url){
   pdfjsLib.getDocument(url).promise.then(pdf=> renderPdfDoc(pdf))
     .catch(e=> viewerContainer.textContent = 'Failed to load PDF: '+(e?.message||e));
@@ -89,7 +121,6 @@ function renderPdfFromArrayBuffer(ab){
 
 // ==========================
 // RENDER PDF PAGES
-// ==========================
 function renderPdfDoc(pdf){
   pdfDoc = pdf; pagesRead=0;
   viewerContainer.innerHTML='';
@@ -142,7 +173,6 @@ function drawWatermark(ctx,width,height){
 
 // ==========================
 // ACCESS DENIED & REQUEST
-// ==========================
 function showAccessDenied(){
   viewerContainer.innerHTML=`
     <div style="padding:24px;text-align:center;">
@@ -165,7 +195,6 @@ function requestAccess(){
 
 // ==========================
 // PROGRESS LOGGING
-// ==========================
 function sendProgress(){
   if(!userEmail||!pdfDoc) return;
   fetch(ACCESS_SCRIPT_URL,{
@@ -182,8 +211,7 @@ function sendProgress(){
 }
 
 // ==========================
-// ANTI-COPY PROTECTIONS
-// ==========================
+// ANTI-COPY
 document.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('copy',e=>e.preventDefault());
 document.addEventListener('cut',e=>e.preventDefault());
@@ -193,6 +221,5 @@ window.addEventListener('keydown',e=>{
 });
 
 // ==========================
-// INIT
-// ==========================
+// START
 window.onload = ()=>{ initViewer(); };
